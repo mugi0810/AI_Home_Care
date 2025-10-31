@@ -1,11 +1,4 @@
 # AI 어르신 돌봄 안전 모니터 (AI Home Care)
-
-![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python)
-![Flask](https://img.shields.io/badge/Flask-2.x-black?logo=flask)
-![Gemini](https://img.shields.io/badge/Google_Gemini-API-blueviolet?logo=google)
-![Database](https://img.shields.io/badge/Database-SQLite-blue?logo=sqlite)
-![Frontend](https://img.shields.io/badge/Frontend-Bootstrap_5-purple?logo=bootstrap)
-
 **Google Gemini API**의 멀티모달(Multimodal) 분석 능력을 활용하여, 영상 속 어르신의 행동을 분석하고 '넘어짐'과 같은 잠재적 위험 상황을 감지하는 Python Flask 기반 웹 애플리케이션입니다.
 
 사용자 인증(로그인) 기능을 통해 개인화된 분석 이력을 제공하며, 모든 분석 내용은 데이터베이스에 자동으로 기록되어 사용자가 언제든지 과거 상황을 다시 확인할 수 있도록 지원합니다.
@@ -13,9 +6,7 @@
 ## 📺 데모 스크린샷
 
 * 메인 대시보드 (분석 결과 및 이력)
-    ![메인 화면](image_f3a37c.jpg)
-* 로그인 화면
-    ![로그인 화면](image_bdf7b6.png)
+    ![메인 화면](/images/image_f3a37c)
 
 ## ✨ 주요 기능
 
