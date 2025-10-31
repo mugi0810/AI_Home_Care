@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 어르신 돌봄 안전 모니터</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        /* 3. (NEW) 전체적인 디자인 개선을 위한 커스텀 스타일 */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+
+        body { 
+            /* (NEW) 은은한 그라데이션 배경 적용 */
+            background: linear-gradient(135deg, #f0f4f8 0%, #ffffff 100%);
+            background-attachment: fixed; /* (NEW) 스크롤해도 그라데이션이 고정됩니다. */
+            
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        /* (NEW) 네비게이션 바 스타일 */
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0,0,0,.05);
+        }
+
+        /* (NEW) 카드에 부드러운 그림자 효과 */
+        .card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,.05);
+            transition: all 0.3s ease;
+        }
+        
+        /* (NEW) 카드에 마우스 올리면 살짝 떠오르는 효과 */
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,.08);
+        }
+
+        /* 히스토리 목록 스크롤 */
+        #history-section {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .history-thumb {
+            width: 80px; 
+            height: 60px; 
+            object-fit: cover; 
+            border-radius: 0.5rem; /* 둥근 모서리 */
+        }
+
+        .list-group-item-action {
+            cursor: pointer;
+            border-radius: 0.5rem !important; /* (NEW) 히스토리 목록도 둥글게 */
+            margin-bottom: 0.5rem;
+            border: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                <i class="bi bi-heart-pulse-fill text-danger me-2"></i> AI 어르신 돌봄 안전 모니터
+            </a>
+            <div class="d-flex">
+                <span class="navbar-text me-3">
+                    환영합니다, <strong class="text-primary">{{ username }}</strong>님!
+                </span>
+                <a href="/logout" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-box-arrow-right me-1"></i> 로그아웃
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="row g-4">
+            <div id="analysis-section" class="col-md-8">
+                
+                <div class="card mb-4">
+                    <div class="card-header bg-white border-0 pt-3 pb-0">
+                        <h2 class="h4"><i class="bi bi-camera-video me-2 text-primary"></i>새로운 분석</h2>
+                    </div>
+                    <div class="card-body p-4">
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="video-file" class="form-label">동영상 파일 선택</label>
+                                <input class="form-control form-control-lg" type="file" id="video-file" name="video" accept="video/mp4,video/webm" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="bi bi-robot me-2"></i> 안전 상태 분석하기
+                            </button>
+                        </form>
+                        
+                        <div id="loading-indicator" class="text-center mt-3" style="display:none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted"><strong>분석 중... (영상이 길 경우 몇 분 정도 소요될 수 있습니다)</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="h4"><i class="bi bi-clipboard-data me-2"></i>최신 분석 결과</h2>
+                <div id="latest-result-container">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        분석할 영상을 업로드해주세요.
+                    </div>
+                </div>
+            </div>
+
+            <div id="history-section" class="col-md-4">
+                <h2 class="h4"><i class="bi bi-clock-history me-2"></i>분석 이력 (History Log)</h2>
+                <div id="history-log-container" class="list-group list-group-flush"> </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('upload-form');
+        const videoFile = document.getElementById('video-file');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const latestResultContainer = document.getElementById('latest-result-container');
+        const historyLogContainer = document.getElementById('history-log-container');
+
+        document.addEventListener('DOMContentLoaded', loadHistory);
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/history');
+                
+                if (response.status === 401 || response.redirected) {
+                    window.location.href = '/login'; 
+                    return;
+                }
+
+                const historyList = await response.json();
+                
+                historyLogContainer.innerHTML = ''; 
+                if (historyList.length === 0) {
+                    historyLogContainer.innerHTML = '<div class="list-group-item text-center text-muted p-3">분석 이력이 없습니다.</div>';
+                    return;
+                }
+
+                // 8. (NEW) 히스토리 카드 UI 개선
+                historyList.forEach(log => {
+                    const item = document.createElement('a'); 
+                    item.className = 'list-group-item list-group-item-action'; 
+                    
+                    let statusIcon = '';
+                    if (log.is_urgent) {
+                        item.classList.add('list-group-item-danger'); // 위험 상태 강조
+                        statusIcon = '<i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>';
+                    } else {
+                        statusIcon = '<i class="bi bi-check-circle-fill text-success me-2"></i>';
+                    }
+
+                    const itemDate = new Date(log.timestamp).toLocaleString();
+                    
+                    item.innerHTML = `
+                        <div class="d-flex w-100 align-items-center">
+                            <img src="${log.thumbnail_url}" alt="썸네일" class="history-thumb me-3">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1">${statusIcon}<strong>${log.status}</strong></h5>
+                                <p class="mb-1 text-muted small">${itemDate}</p>
+                            </div>
+                            <i class="bi bi-chevron-right text-muted"></i> </div>
+                    `;
+                    item.onclick = (e) => {
+                        e.preventDefault(); 
+                        displayResult(log);
+                    };
+                    historyLogContainer.appendChild(item);
+                });
+
+            } catch (error) {
+                console.error('이력 로딩 실패:', error);
+                historyLogContainer.innerHTML = '<div class="alert alert-danger"><i class="bi bi-x-circle me-2"></i>이력을 불러오는 데 실패했습니다.</div>';
+            }
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const formData = new FormData();
+            formData.append('video', videoFile.files[0]);
+            loadingIndicator.style.display = 'block';
+            latestResultContainer.innerHTML = ''; 
+            uploadForm.style.display = 'none';
+
+            try {
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                if (response.status === 401 || response.redirected) {
+                    window.location.href = '/login';
+                    return;
+                }
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || '알 수 없는 오류');
+                }
+                displayResult(result); 
+                loadHistory(); 
+
+            } catch (error) {
+                console.error('분석 요청 실패:', error);
+                latestResultContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>분석 실패:</strong> ${error.message}
+                    </div>`;
+            } finally {
+                loadingIndicator.style.display = 'none';
+                uploadForm.style.display = 'block'; 
+                uploadForm.reset(); 
+            }
+        });
+
+        // 9. (NEW) 최신 결과 카드 UI 개선
+        function displayResult(log) {
+            let statusBadge = '';
+            let alertClass = 'alert-success'; // 기본값 (정상)
+            let urgentText = '<span class="text-success fw-bold">🟢 아니오 (안전)</span>';
+
+            if (log.status === '주의') {
+                statusBadge = 'bg-warning text-dark';
+                alertClass = 'alert-warning';
+            }
+            else if (log.status === '위험' || log.is_urgent) {
+                statusBadge = 'bg-danger';
+                alertClass = 'alert-danger';
+                urgentText = '<span class="text-danger fw-bold">🔴 예 (위험!)</span>';
+            } else {
+                 statusBadge = 'bg-success';
+            }
+
+            const card = document.createElement('div');
+            card.className = 'card shadow-sm'; 
+            if (log.is_urgent) {
+                card.classList.add('border-danger', 'border-2');
+            }
+            
+            const resultDate = new Date(log.timestamp).toLocaleString();
+
+            card.innerHTML = `
+                <div class="card-header ${alertClass} d-flex justify-content-between align-items-center">
+                    <h3 class="h5 mb-0">
+                        상태: <span class="badge ${statusBadge} fs-6 align-middle">${log.status}</span>
+                    </h3>
+                    <small class="text-muted">${resultDate}</small>
+                </div>
+                
+                <div class="card-body">
+                    <img src="${log.thumbnail_url}" alt="분석 썸네일" class="img-fluid rounded mb-3">
+                    <hr>
+                    <p class="card-text fs-5">
+                        <i class="bi bi-card-text me-2"></i>
+                        <strong>상세 설명:</strong> ${log.description}
+                    </p>
+                    <p class="card-text fs-5">
+                        <i class="bi bi-shield-fill-exclamation me-2"></i>
+                        <strong>긴급 조치 필요:</strong> ${urgentText}
+                    </p>
+                </div>
+            `;
+            latestResultContainer.innerHTML = ''; 
+            latestResultContainer.appendChild(card);
+        }
+    </script>
+</body>
+</html>
