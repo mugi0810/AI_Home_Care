@@ -6,7 +6,7 @@
 ## 📺 데모 스크린샷
 
 * 메인 대시보드 (분석 결과 및 이력)
-    ![메인 화면](images/image_bdf7b6.png)
+    ![메인 화면](images/image_f3a37c.jpg)
 
 ## ✨ 주요 기능
 
